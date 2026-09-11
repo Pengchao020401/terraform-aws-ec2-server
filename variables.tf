@@ -21,8 +21,8 @@ variable "admin_cidr" {
   type        = string
 
   validation {
-    condition     = var.admin_cidr != "0.0.0.0/0"
-    error_message = "L'acces SSH ne peut pas etre ouvert a 0.0.0.0/0."
+    condition     = var.admin_cidr != "0.0.0.0/0" && can(cidrhost(var.admin_cidr, 0))
+    error_message = "admin_cidr doit etre un CIDR valide et ne peut pas etre 0.0.0.0/0."
   }
 }
 
@@ -36,8 +36,9 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
-variable "security_group_description" {
-  description = "Description du Security Group"
-  type        = string
-  default     = "Regles du serveur"
+
+variable "enable_monitoring_port" {
+  description = "Ouvre le port 9100 au CIDR administrateur (v1.1.0)"
+  type        = bool
+  default     = false
 }

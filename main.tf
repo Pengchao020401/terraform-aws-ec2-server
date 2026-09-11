@@ -1,33 +1,41 @@
 resource "aws_security_group" "this" {
   name        = "novasphere-${var.name}"
-  description = var.security_group_description
+  description = "Regles du serveur ${var.name}"
+}
 
-  ingress {
-    description = "SSH restreint"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
-  }
+resource "aws_vpc_security_group_ingress_rule" "ssh" {
+  security_group_id = aws_security_group.this.id
+  description       = "SSH restreint"
+  from_port         = 22
+  to_port           = 22
+  ip_protocol       = "tcp"
+  cidr_ipv4         = var.admin_cidr
+}
 
-  dynamic "ingress" {
-    for_each = var.open_ports
+resource "aws_vpc_security_group_ingress_rule" "public" {
+  for_each          = toset([for p in var.open_ports : tostring(p)])
+  security_group_id = aws_security_group.this.id
+  description       = "Port ${each.value} public"
+  from_port         = tonumber(each.value)
+  to_port           = tonumber(each.value)
+  ip_protocol       = "tcp"
+  cidr_ipv4         = "0.0.0.0/0"
+}
 
-    content {
-      description = "Port public ${ingress.value}"
-      from_port   = ingress.value
-      to_port     = ingress.value
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  }
+resource "aws_vpc_security_group_ingress_rule" "monitoring" {
+  count             = var.enable_monitoring_port ? 1 : 0
+  security_group_id = aws_security_group.this.id
+  description       = "node exporter, administration seulement"
+  from_port         = 9100
+  to_port           = 9100
+  ip_protocol       = "tcp"
+  cidr_ipv4         = var.admin_cidr
+}
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+resource "aws_vpc_security_group_egress_rule" "all" {
+  security_group_id = aws_security_group.this.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
 resource "aws_instance" "this" {
